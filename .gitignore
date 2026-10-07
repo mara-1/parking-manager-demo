@@ -1,0 +1,23 @@
+# Сборка
+bin/
+obj/
+publish/
+*.zip
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+
+# Результаты тестов, покрытия и метрик
+TestResults/
+coveragereport/
+metrics/
+build.log
+
+# Локальная база данных и отчёты приложения
+*.db
+*.db-shm
+*.db-wal
+reports/

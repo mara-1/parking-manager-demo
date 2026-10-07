@@ -1,0 +1,72 @@
+# Сбор метрик качества. Вызывается из release.yml в конце каждого этапа
+# (при создании тега версии) или вручную на вкладке Actions.
+name: Metrics
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: 'Название этапа (необязательно), например «3. Реализация I»'
+        required: false
+        default: ''
+  workflow_call:
+    inputs:
+      stage:
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+jobs:
+  metrics:
+    name: metrics
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # полная история нужна для git-метрик
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Сборка с анализаторами
+        shell: bash
+        run: dotnet build -c Release --no-incremental -clp:NoSummary 2>&1 | tee build.log
+
+      - name: Тесты с покрытием
+        continue-on-error: true   # упавшие тесты тоже являются метрикой
+        run: dotnet test -c Release --no-build --collect:"XPlat Code Coverage" --logger trx --results-directory TestResults
+
+      - name: Объединение отчётов о покрытии
+        uses: danielpalme/ReportGenerator-GitHub-Action@5
+        with:
+          reports: TestResults/**/coverage.cobertura.xml
+          targetdir: coveragereport
+          reporttypes: Cobertura
+
+      - name: Сбор метрик
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STAGE: ${{ inputs.stage }}
+          PYTHONIOENCODING: utf-8
+        run: python scripts/collect_metrics.py --build-log build.log --trx-dir TestResults --coverage coveragereport/Cobertura.xml --out metrics
+
+      - name: Метрики в сводке запуска
+        shell: bash
+        run: cat metrics/metrics.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: metrics
+          path: metrics
+          retention-days: 90

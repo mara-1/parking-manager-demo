@@ -1,0 +1,10 @@
+# Нормализация переводов строк в репозитории
+* text=auto
+
+# Скрипты и git-хуки выполняются в sh — только LF
+*.sh text eol=lf
+.githooks/* text eol=lf
+
+# Двоичные файлы
+*.png binary
+*.ico binary

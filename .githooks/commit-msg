@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Локальная проверка сообщения коммита по соглашению Conventional Commits.
+# Подключение (один раз после клонирования): git config core.hooksPath .githooks
+
+header=$(head -n 1 "$1")
+
+# служебные сообщения git не проверяются
+case "$header" in
+  "Merge "*|"Revert \""*|"fixup! "*|"squash! "*) exit 0 ;;
+esac
+
+types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+scopes='auth|parking|billing|booking|reports|ui|data|repo|ci|deps'
+pattern="^($types)(\(($scopes)\))?!?: [^[:space:]].*$"
+
+if [[ ! "$header" =~ $pattern ]]; then
+  echo "ОШИБКА: сообщение коммита не соответствует Conventional Commits." >&2
+  echo "  Получено:  $header" >&2
+  echo "  Формат:    <тип>(<область>): <описание>" >&2
+  echo "  Типы:      ${types//|/, }" >&2
+  echo "  Области:   ${scopes//|/, }" >&2
+  echo "  Пример:    feat(parking): добавить регистрацию въезда автомобиля" >&2
+  exit 1
+fi
+
+# длина в символах UTF-8 (не зависит от локали): считаем байты, кроме байтов-продолжений
+length=$(printf '%s' "$header" | LC_ALL=C tr -d '\200-\277' | wc -c)
+if (( length > 100 )); then
+  echo "ОШИБКА: заголовок коммита длиннее 100 символов ($length)." >&2
+  exit 1
+fi
+
+exit 0
